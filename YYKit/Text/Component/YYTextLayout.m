@@ -1502,22 +1502,27 @@ fail:
         return [YYTextPosition positionWithOffset:position affinity:YYTextAffinityBackward];
     }
     
+    // 升级 Xcode 27 改动：此处原为 fabs(left - point.y) < fabs(right - point.y) < (right ? prev : next)，
+    // 会被新版本 Clang 报错 chained comparison 'X < Y < Z' does not behave the same as a mathematical expression；
+    // 且该写法本身也是坏的（等价于 (0或1) < prev，position 只会得到 0/1）。
+    // 按 YYKit 官方源码恢复为三目写法：点更靠近左边界取 prev，否则取 next。
     [self _insideComposedCharacterSequences:line position:position block: ^(CGFloat left, CGFloat right, NSUInteger prev, NSUInteger next) {
         if (isVertical) {
-            position = fabs(left - point.y) < fabs(right - point.y) < (right ? prev : next);
+            position = fabs(left - point.y) < fabs(right - point.y) ? prev : next;
         } else {
-            position = fabs(left - point.x) < fabs(right - point.x) < (right ? prev : next);
+            position = fabs(left - point.x) < fabs(right - point.x) ? prev : next;
         }
     }];
-    
+
+    // 升级 Xcode 27 改动：同上，原链式比较改回 YYKit 官方的三目写法（emoji / 组合字符内定位）。
     [self _insideEmoji:line position:position block: ^(CGFloat left, CGFloat right, NSUInteger prev, NSUInteger next) {
         if (isVertical) {
-            position = fabs(left - point.y) < fabs(right - point.y) < (right ? prev : next);
+            position = fabs(left - point.y) < fabs(right - point.y) ? prev : next;
         } else {
-            position = fabs(left - point.x) < fabs(right - point.x) < (right ? prev : next);
+            position = fabs(left - point.x) < fabs(right - point.x) ? prev : next;
         }
     }];
-    
+
     if (position < _visibleRange.location) position = _visibleRange.location;
     else if (position > _visibleRange.location + _visibleRange.length) position = _visibleRange.location + _visibleRange.length;
     
